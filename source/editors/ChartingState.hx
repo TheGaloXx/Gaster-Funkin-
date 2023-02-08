@@ -77,14 +77,10 @@ class ChartingState extends MusicBeatState
 	var eventStuff:Array<Dynamic> =
 	[
 		['', "Nothing. Yep, that's right."],
-		['Dadbattle Spotlight', "Used in Dad Battle,\nValue 1: 0/1 = ON/OFF,\n2 = Target Dad\n3 = Target BF"],
 		['Hey!', "Plays the \"Hey!\" animation from Bopeebo,\nValue 1: BF = Only Boyfriend, GF = Only Girlfriend,\nSomething else = Both.\nValue 2: Custom animation duration,\nleave it blank for 0.6s"],
 		['Set GF Speed', "Sets GF head bopping speed,\nValue 1: 1 = Normal speed,\n2 = 1/2 speed, 4 = 1/4 speed etc.\nUsed on Fresh during the beatbox parts.\n\nWarning: Value must be integer!"],
 		['Philly Glow', "Exclusive to Week 3\nValue 1: 0/1/2 = OFF/ON/Reset Gradient\n \nNo, i won't add it to other weeks."],
-		['Kill Henchmen', "For Mom's songs, don't use this please, i love them :("],
 		['Add Camera Zoom', "Used on MILF on that one \"hard\" part\nValue 1: Camera zoom add (Default: 0.015)\nValue 2: UI zoom add (Default: 0.03)\nLeave the values blank if you want to use Default."],
-		['BG Freaks Expression', "Should be used only in \"school\" Stage!"],
-		['Trigger BG Ghouls', "Should be used only in \"schoolEvil\" Stage!"],
 		['Play Animation', "Plays an animation on a Character,\nonce the animation is completed,\nthe animation changes to Idle\n\nValue 1: Animation to play.\nValue 2: Character (Dad, BF, GF)"],
 		['Camera Follow Pos', "Value 1: X\nValue 2: Y\n\nThe camera won't change the follow point\nafter using this, for getting it back\nto normal, leave both values blank."],
 		['Alt Idle Animation', "Sets a specified suffix after the idle animation name.\nYou can use this to trigger 'idle-alt' if you set\nValue 2 to -alt\n\nValue 1: Character to set (Dad, BF or GF)\nValue 2: New suffix (Leave it blank to disable)"],
@@ -446,7 +442,7 @@ class ChartingState extends MusicBeatState
 			var songName:String = Paths.formatToSongPath(_song.song);
 			var file:String = Paths.json(songName + '/events');
 			#if sys
-			if (#if MODS_ALLOWED FileSystem.exists(Paths.modsJson(songName + '/events')) || #end FileSystem.exists(file))
+			if (FileSystem.exists(file))
 			#else
 			if (OpenFlAssets.exists(file))
 			#end
@@ -491,37 +487,13 @@ class ChartingState extends MusicBeatState
 		stepperSpeed.value = _song.speed;
 		stepperSpeed.name = 'song_speed';
 		blockPressWhileTypingOnStepper.push(stepperSpeed);
-		#if MODS_ALLOWED
-		var directories:Array<String> = [Paths.mods('characters/'), Paths.mods(Paths.currentModDirectory + '/characters/'), Paths.getPreloadPath('characters/')];
-		for(mod in Paths.getGlobalMods())
-			directories.push(Paths.mods(mod + '/characters/'));
-		#else
 		var directories:Array<String> = [Paths.getPreloadPath('characters/')];
-		#end
 
 		var tempMap:Map<String, Bool> = new Map<String, Bool>();
 		var characters:Array<String> = CoolUtil.coolTextFile(Paths.txt('characterList'));
 		for (i in 0...characters.length) {
 			tempMap.set(characters[i], true);
 		}
-
-		#if MODS_ALLOWED
-		for (i in 0...directories.length) {
-			var directory:String = directories[i];
-			if(FileSystem.exists(directory)) {
-				for (file in FileSystem.readDirectory(directory)) {
-					var path = haxe.io.Path.join([directory, file]);
-					if (!FileSystem.isDirectory(path) && file.endsWith('.json')) {
-						var charToCheck:String = file.substr(0, file.length - 5);
-						if(!charToCheck.endsWith('-dead') && !tempMap.exists(charToCheck)) {
-							tempMap.set(charToCheck, true);
-							characters.push(charToCheck);
-						}
-					}
-				}
-			}
-		}
-		#end
 
 		var player1DropDown = new FlxUIDropDownMenuCustom(10, stepperSpeed.y + 45, FlxUIDropDownMenuCustom.makeStrIdLabelArray(characters, true), function(character:String)
 		{
@@ -547,13 +519,7 @@ class ChartingState extends MusicBeatState
 		player2DropDown.selectedLabel = _song.player2;
 		blockPressWhileScrolling.push(player2DropDown);
 
-		#if MODS_ALLOWED
-		var directories:Array<String> = [Paths.mods('stages/'), Paths.mods(Paths.currentModDirectory + '/stages/'), Paths.getPreloadPath('stages/')];
-		for(mod in Paths.getGlobalMods())
-			directories.push(Paths.mods(mod + '/stages/'));
-		#else
 		var directories:Array<String> = [Paths.getPreloadPath('stages/')];
-		#end
 
 		tempMap.clear();
 		var stageFile:Array<String> = CoolUtil.coolTextFile(Paths.txt('stageList'));
@@ -565,23 +531,6 @@ class ChartingState extends MusicBeatState
 			}
 			tempMap.set(stageToCheck, true);
 		}
-		#if MODS_ALLOWED
-		for (i in 0...directories.length) {
-			var directory:String = directories[i];
-			if(FileSystem.exists(directory)) {
-				for (file in FileSystem.readDirectory(directory)) {
-					var path = haxe.io.Path.join([directory, file]);
-					if (!FileSystem.isDirectory(path) && file.endsWith('.json')) {
-						var stageToCheck:String = file.substr(0, file.length - 5);
-						if(!tempMap.exists(stageToCheck)) {
-							tempMap.set(stageToCheck, true);
-							stages.push(stageToCheck);
-						}
-					}
-				}
-			}
-		}
-		#end
 
 		if(stages.length < 1) stages.push('stage');
 
@@ -943,13 +892,6 @@ class ChartingState extends MusicBeatState
 		#if LUA_ALLOWED
 		var directories:Array<String> = [];
 
-		#if MODS_ALLOWED
-		directories.push(Paths.mods('custom_notetypes/'));
-		directories.push(Paths.mods(Paths.currentModDirectory + '/custom_notetypes/'));
-		for(mod in Paths.getGlobalMods())
-			directories.push(Paths.mods(mod + '/custom_notetypes/'));
-		#end
-
 		for (i in 0...directories.length) {
 			var directory:String =  directories[i];
 			if(FileSystem.exists(directory)) {
@@ -1004,13 +946,6 @@ class ChartingState extends MusicBeatState
 		#if LUA_ALLOWED
 		var eventPushedMap:Map<String, Bool> = new Map<String, Bool>();
 		var directories:Array<String> = [];
-
-		#if MODS_ALLOWED
-		directories.push(Paths.mods('custom_events/'));
-		directories.push(Paths.mods(Paths.currentModDirectory + '/custom_events/'));
-		for(mod in Paths.getGlobalMods())
-			directories.push(Paths.mods(mod + '/custom_events/'));
-		#end
 
 		for (i in 0...directories.length) {
 			var directory:String =  directories[i];
@@ -2066,47 +2001,6 @@ class ChartingState extends MusicBeatState
 		reloadGridLayer();
 	}
 
-	/*
-	function loadAudioBuffer() {
-		if(audioBuffers[0] != null) {
-			audioBuffers[0].dispose();
-		}
-		audioBuffers[0] = null;
-		#if MODS_ALLOWED
-		if(FileSystem.exists(Paths.modFolders('songs/' + currentSongName + '/Inst.ogg'))) {
-			audioBuffers[0] = AudioBuffer.fromFile(Paths.modFolders('songs/' + currentSongName + '/Inst.ogg'));
-			//trace('Custom vocals found');
-		}
-		else { #end
-			var leVocals:String = Paths.getPath(currentSongName + '/Inst.' + Paths.SOUND_EXT, SOUND, 'songs');
-			if (OpenFlAssets.exists(leVocals)) { //Vanilla inst
-				audioBuffers[0] = AudioBuffer.fromFile('./' + leVocals.substr(6));
-				//trace('Inst found');
-			}
-		#if MODS_ALLOWED
-		}
-		#end
-
-		if(audioBuffers[1] != null) {
-			audioBuffers[1].dispose();
-		}
-		audioBuffers[1] = null;
-		#if MODS_ALLOWED
-		if(FileSystem.exists(Paths.modFolders('songs/' + currentSongName + '/Voices.ogg'))) {
-			audioBuffers[1] = AudioBuffer.fromFile(Paths.modFolders('songs/' + currentSongName + '/Voices.ogg'));
-			//trace('Custom vocals found');
-		} else { #end
-			var leVocals:String = Paths.getPath(currentSongName + '/Voices.' + Paths.SOUND_EXT, SOUND, 'songs');
-			if (OpenFlAssets.exists(leVocals)) { //Vanilla voices
-				audioBuffers[1] = AudioBuffer.fromFile('./' + leVocals.substr(6));
-				//trace('Voices found, LETS FUCKING GOOOO');
-			}
-		#if MODS_ALLOWED
-		}
-		#end
-	}
-	*/
-
 	var lastSecBeats:Float = 0;
 	var lastSecBeatsNext:Float = 0;
 	function reloadGridLayer() {
@@ -2508,26 +2402,14 @@ class ChartingState extends MusicBeatState
 
 	function loadHealthIconFromCharacter(char:String) {
 		var characterPath:String = 'characters/' + char + '.json';
-		#if MODS_ALLOWED
-		var path:String = Paths.modFolders(characterPath);
-		if (!FileSystem.exists(path)) {
-			path = Paths.getPreloadPath(characterPath);
-		}
 
-		if (!FileSystem.exists(path))
-		#else
 		var path:String = Paths.getPreloadPath(characterPath);
 		if (!OpenFlAssets.exists(path))
-		#end
 		{
 			path = Paths.getPreloadPath('characters/' + Character.DEFAULT_CHARACTER + '.json'); //If a character couldn't be found, change him to BF just to prevent a crash
 		}
 
-		#if MODS_ALLOWED
-		var rawJson = File.getContent(path);
-		#else
 		var rawJson = OpenFlAssets.getText(path);
-		#end
 
 		var json:Character.CharacterFile = cast Json.parse(rawJson);
 		return json.healthicon;

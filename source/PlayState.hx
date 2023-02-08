@@ -871,15 +871,6 @@ class PlayState extends MusicBeatState
 		var filesPushed:Array<String> = [];
 		var foldersToCheck:Array<String> = [Paths.getPreloadPath('scripts/')];
 
-		#if MODS_ALLOWED
-		foldersToCheck.insert(0, Paths.mods('scripts/'));
-		if(Paths.currentModDirectory != null && Paths.currentModDirectory.length > 0)
-			foldersToCheck.insert(0, Paths.mods(Paths.currentModDirectory + '/scripts/'));
-
-		for(mod in Paths.getGlobalMods())
-			foldersToCheck.insert(0, Paths.mods(mod + '/scripts/'));
-		#end
-
 		for (folder in foldersToCheck)
 		{
 			if(FileSystem.exists(folder))
@@ -894,11 +885,6 @@ class PlayState extends MusicBeatState
 				}
 			}
 		}
-		#end
-
-		// STAGE SCRIPTS
-		#if (MODS_ALLOWED && LUA_ALLOWED)
-		startLuasOnFolder('stages/' + curStage + '.lua');
 		#end
 
 		var gfVersion:String = SONG.gfVersion;
@@ -1196,15 +1182,6 @@ class PlayState extends MusicBeatState
 		var filesPushed:Array<String> = [];
 		var foldersToCheck:Array<String> = [Paths.getPreloadPath('data/' + Paths.formatToSongPath(SONG.song) + '/')];
 
-		#if MODS_ALLOWED
-		foldersToCheck.insert(0, Paths.mods('data/' + Paths.formatToSongPath(SONG.song) + '/'));
-		if(Paths.currentModDirectory != null && Paths.currentModDirectory.length > 0)
-			foldersToCheck.insert(0, Paths.mods(Paths.currentModDirectory + '/data/' + Paths.formatToSongPath(SONG.song) + '/'));
-
-		for(mod in Paths.getGlobalMods())
-			foldersToCheck.insert(0, Paths.mods(mod + '/data/' + Paths.formatToSongPath(SONG.song) + '/' ));// using push instead of insert because these should run after everything else
-		#end
-
 		for (folder in foldersToCheck)
 		{
 			if(FileSystem.exists(folder))
@@ -1346,78 +1323,6 @@ class PlayState extends MusicBeatState
 		if(eventNotes.length < 1) checkEventNote();
 	}
 
-	#if (!flash && sys)
-	public var runtimeShaders:Map<String, Array<String>> = new Map<String, Array<String>>();
-	public function createRuntimeShader(name:String):FlxRuntimeShader
-	{
-		if(!ClientPrefs.shaders) return new FlxRuntimeShader();
-
-		#if (!flash && MODS_ALLOWED && sys)
-		if(!runtimeShaders.exists(name) && !initLuaShader(name))
-		{
-			FlxG.log.warn('Shader $name is missing!');
-			return new FlxRuntimeShader();
-		}
-
-		var arr:Array<String> = runtimeShaders.get(name);
-		return new FlxRuntimeShader(arr[0], arr[1]);
-		#else
-		FlxG.log.warn("Platform unsupported for Runtime Shaders!");
-		return null;
-		#end
-	}
-
-	public function initLuaShader(name:String, ?glslVersion:Int = 120)
-	{
-		if(!ClientPrefs.shaders) return false;
-
-		if(runtimeShaders.exists(name))
-		{
-			FlxG.log.warn('Shader $name was already initialized!');
-			return true;
-		}
-
-		var foldersToCheck:Array<String> = [Paths.mods('shaders/')];
-		if(Paths.currentModDirectory != null && Paths.currentModDirectory.length > 0)
-			foldersToCheck.insert(0, Paths.mods(Paths.currentModDirectory + '/shaders/'));
-
-		for(mod in Paths.getGlobalMods())
-			foldersToCheck.insert(0, Paths.mods(mod + '/shaders/'));
-		
-		for (folder in foldersToCheck)
-		{
-			if(FileSystem.exists(folder))
-			{
-				var frag:String = folder + name + '.frag';
-				var vert:String = folder + name + '.vert';
-				var found:Bool = false;
-				if(FileSystem.exists(frag))
-				{
-					frag = File.getContent(frag);
-					found = true;
-				}
-				else frag = null;
-
-				if (FileSystem.exists(vert))
-				{
-					vert = File.getContent(vert);
-					found = true;
-				}
-				else vert = null;
-
-				if(found)
-				{
-					runtimeShaders.set(name, [frag, vert]);
-					//trace('Found shader $name!');
-					return true;
-				}
-			}
-		}
-		FlxG.log.warn('Missing shader $name .frag AND .vert files!');
-		return false;
-	}
-	#end
-
 	function set_songSpeed(value:Float):Float
 	{
 		if(generatedMusic)
@@ -1508,22 +1413,10 @@ class PlayState extends MusicBeatState
 		#if LUA_ALLOWED
 		var doPush:Bool = false;
 		var luaFile:String = 'characters/' + name + '.lua';
-		#if MODS_ALLOWED
-		if(FileSystem.exists(Paths.modFolders(luaFile))) {
-			luaFile = Paths.modFolders(luaFile);
-			doPush = true;
-		} else {
-			luaFile = Paths.getPreloadPath(luaFile);
-			if(FileSystem.exists(luaFile)) {
-				doPush = true;
-			}
-		}
-		#else
 		luaFile = Paths.getPreloadPath(luaFile);
 		if(Assets.exists(luaFile)) {
 			doPush = true;
 		}
-		#end
 
 		if(doPush)
 		{
@@ -2400,11 +2293,7 @@ class PlayState extends MusicBeatState
 
 		var songName:String = Paths.formatToSongPath(SONG.song);
 		var file:String = Paths.json(songName + '/events');
-		#if MODS_ALLOWED
-		if (FileSystem.exists(Paths.modsJson(songName + '/events')) || FileSystem.exists(file)) {
-		#else
 		if (OpenFlAssets.exists(file)) {
-		#end
 			var eventsData:Array<Dynamic> = Song.loadFromJson('events', songName).events;
 			for (event in eventsData) //Event Notes
 			{
@@ -3275,14 +3164,6 @@ class PlayState extends MusicBeatState
 		persistentDraw = true;
 		paused = true;
 
-		// 1 / 1000 chance for Gitaroo Man easter egg
-		/*if (FlxG.random.bool(0.1))
-		{
-			// gitaroo man easter egg
-			cancelMusicFadeTween();
-			MusicBeatState.switchState(new GitarooPause());
-		}
-		else {*/
 		if(FlxG.sound.music != null) {
 			FlxG.sound.music.pause();
 			vocals.pause();
@@ -3373,40 +3254,6 @@ class PlayState extends MusicBeatState
 
 	public function triggerEventNote(eventName:String, value1:String, value2:String) {
 		switch(eventName) {
-			case 'Dadbattle Spotlight':
-				var val:Null<Int> = Std.parseInt(value1);
-				if(val == null) val = 0;
-
-				switch(Std.parseInt(value1))
-				{
-					case 1, 2, 3: //enable and target dad
-						if(val == 1) //enable
-						{
-							dadbattleBlack.visible = true;
-							dadbattleLight.visible = true;
-							dadbattleSmokes.visible = true;
-							defaultCamZoom += 0.12;
-						}
-
-						var who:Character = dad;
-						if(val > 2) who = boyfriend;
-						//2 only targets dad
-						dadbattleLight.alpha = 0;
-						new FlxTimer().start(0.12, function(tmr:FlxTimer) {
-							dadbattleLight.alpha = 0.375;
-						});
-						dadbattleLight.setPosition(who.getGraphicMidpoint().x - dadbattleLight.width / 2, who.y + who.height - dadbattleLight.height + 50);
-
-					default:
-						dadbattleBlack.visible = false;
-						dadbattleLight.visible = false;
-						defaultCamZoom -= 0.12;
-						FlxTween.tween(dadbattleSmokes, {alpha: 0}, 1, {onComplete: function(twn:FlxTween)
-						{
-							dadbattleSmokes.visible = false;
-						}});
-				}
-
 			case 'Hey!':
 				var value:Int = 2;
 				switch(value1.toLowerCase().trim()) {
@@ -3544,10 +3391,6 @@ class PlayState extends MusicBeatState
 						}
 						phillyGlowGradient.bop();
 				}
-
-			case 'Kill Henchmen':
-				killHenchmen();
-
 			case 'Add Camera Zoom':
 				if(ClientPrefs.camZooms && FlxG.camera.zoom < 1.35) {
 					var camZoom:Float = Std.parseFloat(value1);
@@ -3558,13 +3401,6 @@ class PlayState extends MusicBeatState
 					FlxG.camera.zoom += camZoom;
 					camHUD.zoom += hudZoom;
 				}
-
-			case 'Trigger BG Ghouls':
-				if(curStage == 'schoolEvil' && !ClientPrefs.lowQuality) {
-					bgGhouls.dance(true);
-					bgGhouls.visible = true;
-				}
-
 			case 'Play Animation':
 				//trace('Anim to play: ' + value1);
 				var char:Character = dad;
@@ -3714,9 +3550,6 @@ class PlayState extends MusicBeatState
 						}
 				}
 				reloadHealthBarColors();
-
-			case 'BG Freaks Expression':
-				if(bgGirls != null) bgGirls.swapDanceType();
 
 			case 'Change Scroll Speed':
 				if (songSpeedType == "constant")
@@ -5095,23 +4928,7 @@ class PlayState extends MusicBeatState
 			if(script.scriptName == luaFile) return false;
 		}
 
-		#if MODS_ALLOWED
-		var luaToLoad:String = Paths.modFolders(luaFile);
-		if(FileSystem.exists(luaToLoad))
-		{
-			luaArray.push(new FunkinLua(luaToLoad));
-			return true;
-		}
-		else
-		{
-			luaToLoad = Paths.getPreloadPath(luaFile);
-			if(FileSystem.exists(luaToLoad))
-			{
-				luaArray.push(new FunkinLua(luaToLoad));
-				return true;
-			}
-		}
-		#elseif sys
+		#if sys
 		var luaToLoad:String = Paths.getPreloadPath(luaFile);
 		if(OpenFlAssets.exists(luaToLoad))
 		{
